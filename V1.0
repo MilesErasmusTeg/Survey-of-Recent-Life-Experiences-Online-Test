@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRLE – Professional Version</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background: #f4f6f9;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+h1 { text-align: center; }
+
+.progress {
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.question {
+    margin-bottom: 25px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+select {
+    padding: 6px;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+button {
+    padding: 12px 20px;
+    font-size: 16px;
+    background: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+button:hover { background: #34495e; }
+
+.result {
+    margin-top: 30px;
+    padding: 20px;
+    background: #ecf0f1;
+    border-radius: 6px;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Survey of Recent Life Experiences (SRLE)</h1>
+
+<div class="progress" id="progress">
+Completed: 0 / 41
+</div>
+
+<p>
+1 = Not at all &nbsp; | &nbsp;
+2 = Slightly &nbsp; | &nbsp;
+3 = Distinctly &nbsp; | &nbsp;
+4 = Very much
+</p>
+
+<form id="srleForm">
+<div id="questions"></div>
+<button type="button" onclick="calculateScore()">Submit</button>
+<button type="button" onclick="exportPDF()">Export PDF Summary</button>
+</form>
+
+<div id="results" class="result"></div>
+
+<p style="font-size: 14px; margin-top:30px;">
+Disclaimer: This tool is intended for research or screening purposes only and does not provide a clinical diagnosis.
+</p>
+
+</div>
+
+<script>
+
+const questions = [
+{ text:"Disliking your daily activities", scale:"work" },
+{ text:"Disliking your work", scale:"work" },
+{ text:"Ethnic or racial conflict", scale:"interpersonal" },
+{ text:"Conflicts with in-laws or partner’s family", scale:"interpersonal" },
+{ text:"Being let down by friends", scale:"interpersonal" },
+{ text:"Conflicts with supervisors", scale:"work" },
+{ text:"Social rejection", scale:"interpersonal" },
+{ text:"Too many things to do at once", scale:"work" },
+{ text:"Being taken for granted", scale:"interpersonal" },
+{ text:"Financial conflicts with family", scale:"financial" },
+{ text:"Trust betrayed by friend", scale:"interpersonal" },
+{ text:"Contributions overlooked", scale:"work" },
+{ text:"Struggling to meet your own standards", scale:"work" },
+{ text:"Being taken advantage of", scale:"interpersonal" },
+{ text:"Not enough leisure time", scale:"work" },
+{ text:"Cash flow difficulties", scale:"financial" },
+{ text:"A lot of responsibilities", scale:"work" },
+{ text:"Dissatisfaction with work", scale:"work" },
+{ text:"Decisions about intimate relationships", scale:"interpersonal" },
+{ text:"Not enough time for obligations", scale:"work" },
+{ text:"Financial burdens", scale:"financial" },
+{ text:"Lower evaluation than deserved", scale:"work" },
+{ text:"High levels of noise", scale:"isolation" },
+{ text:"Lower evaluation than hoped for", scale:"work" },
+{ text:"Conflicts with family", scale:"interpersonal" },
+{ text:"Work too demanding", scale:"work" },
+{ text:"Conflicts with friends", scale:"interpersonal" },
+{ text:"Trying to secure loans", scale:"financial" },
+{ text:"Being ripped off", scale:"financial" },
+{ text:"Unwanted interruptions at work", scale:"work" },
+{ text:"Social isolation", scale:"isolation" },
+{ text:"Being ignored", scale:"interpersonal" },
+{ text:"Dissatisfaction with appearance", scale:"isolation" },
+{ text:"Unsatisfactory housing", scale:"financial" },
+{ text:"Work uninteresting", scale:"work" },
+{ text:"Failing to get expected money", scale:"financial" },
+{ text:"Gossip about someone you care about", scale:"interpersonal" },
+{ text:"Dissatisfaction with physical fitness", scale:"isolation" },
+{ text:"Gossip about yourself", scale:"interpersonal" },
+{ text:"Difficulty with technology", scale:"work" },
+{ text:"Hard work maintaining home", scale:"financial" }
+];
+
+const container = document.getElementById("questions");
+
+questions.forEach((q, i) => {
+    const div = document.createElement("div");
+    div.className = "question";
+    div.innerHTML = `
+        <p><strong>${i+1}. ${q.text}</strong></p>
+        <select name="q${i}" onchange="updateProgress(); autoScroll(${i});" required>
+            <option value="" disabled selected>Select</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+    `;
+    container.appendChild(div);
+});
+
+function updateProgress() {
+    let completed = 0;
+    questions.forEach((_, i) => {
+        if (document.querySelector(`select[name="q${i}"]`).value) completed++;
+    });
+    document.getElementById("progress").innerText = 
+        `Completed: ${completed} / ${questions.length}`;
+}
+
+function autoScroll(index) {
+    const next = document.querySelectorAll(".question")[index+1];
+    if (next) next.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function calculateScore() {
+    let total = 0;
+    let subscales = { interpersonal:0, financial:0, work:0, isolation:0 };
+
+    for (let i=0; i<questions.length; i++) {
+        const value = document.querySelector(`select[name="q${i}"]`).value;
+        if (!value) { alert("Please answer all questions."); return; }
+        total += parseInt(value);
+        subscales[questions[i].scale] += parseInt(value);
+    }
+
+    let interpretation =
+        total >= 140 ? "Very High Stress" :
+        total >= 120 ? "High Stress" :
+        total >= 80 ? "Average Stress" :
+        total >= 60 ? "Low Stress" :
+        "Very Low Stress";
+
+    document.getElementById("results").innerHTML = `
+        Total Score: ${total} / 164<br><br>
+        Stress Level: ${interpretation}<br><br>
+        <u>Subscale Scores</u><br>
+        Interpersonal: ${subscales.interpersonal}<br>
+        Financial: ${subscales.financial}<br>
+        Work: ${subscales.work}<br>
+        Isolation: ${subscales.isolation}
+    `;
+
+    window.srleResults = { total, interpretation, subscales };
+}
+
+function exportPDF() {
+    if (!window.srleResults) {
+        alert("Please submit the survey first.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(16);
+    doc.text("SRLE Clinical Summary", 20, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Total Score: ${window.srleResults.total} / 164`, 20, 40);
+    doc.text(`Stress Level: ${window.srleResults.interpretation}`, 20, 50);
+
+    doc.text("Subscale Scores:", 20, 70);
+    doc.text(`Interpersonal: ${window.srleResults.subscales.interpersonal}`, 20, 80);
+    doc.text(`Financial: ${window.srleResults.subscales.financial}`, 20, 90);
+    doc.text(`Work: ${window.srleResults.subscales.work}`, 20, 100);
+    doc.text(`Isolation: ${window.srleResults.subscales.isolation}`, 20, 110);
+
+    doc.text("Disclaimer: Screening tool only. Not a clinical diagnosis.", 20, 130);
+
+    doc.save("SRLE_Clinical_Summary.pdf");
+}
+
+</script>
+
+</body>
+</html>
